@@ -45,7 +45,7 @@ legend{font-family:"Noto Serif TC",serif;font-weight:600;font-size:1.1rem;paddin
 .hint{color:var(--muted);font-size:.86rem;margin:2px 0 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px 12px}
 label.f{display:flex;flex-direction:column;font-size:.88rem;color:var(--muted);gap:3px}
-input[type=number],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);
+input[type=number],input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);
   border-radius:6px;padding:7px 9px;width:100%;font-variant-numeric:tabular-nums}
 textarea{min-height:90px;resize:vertical}
 .checks{display:grid;gap:6px;margin-top:6px}
@@ -84,6 +84,9 @@ h3{font-size:1rem;margin:16px 0 4px}
 .rules section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-bottom:16px}
 .rules h2{font-family:"Noto Serif TC",serif;margin:0 0 6px;font-size:1.25rem}
 .rules ul{margin:0;padding-left:1.2em}.rules li{margin:4px 0;max-width:70ch}
+.lookup{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-width:680px}
+.lookup .f{width:170px}.lookup .btn{margin-top:0;padding:8px 18px}
+#q_msg{flex-basis:100%;margin:0}
 footer{max-width:1120px;margin:0 auto;padding:0 20px 32px;color:var(--muted);font-size:.82rem}
 </style>
 </head>
@@ -91,6 +94,11 @@ footer{max-width:1120px;margin:0 auto;padding:0 20px 32px;color:var(--muted);fon
 <header>
   <h1>進場檢查站</h1>
   <p class="sub">把兩本講義的條件變成一張檢查表：填入盤面數字，燈號告訴你這檔股票符不符合型態。台灣時間 <span class="clock" id="clock">--:--:--</span></p>
+  <div class="lookup">
+    <label class="f">股票代號<input type="text" id="q" inputmode="numeric" maxlength="4" placeholder="例如 2330" autocomplete="off"></label>
+    <button class="btn" id="q_btn" type="button">帶入資料</button>
+    <p class="auto" id="q_msg">輸入代號後，昨收、5 日均量、前高、5 日均線、處置股會自動填入。</p>
+  </div>
 </header>
 
 <nav role="tablist">
@@ -458,6 +466,50 @@ $('c_btn').addEventListener('click',()=>{
 
 document.querySelectorAll('#p1 input,#p1 select').forEach(e=>e.addEventListener('input',calcA));
 document.querySelectorAll('#p2 input,#p2 select').forEach(e=>e.addEventListener('input',calcB));
+// ===== 股票代號查詢（資料由 GitHub Actions 每天盤後更新到 data 分支）=====
+const REPO=(()=>{const h=location.hostname;if(h.endsWith('.github.io')){const r=location.pathname.split('/').filter(Boolean)[0];if(r)return h.split('.')[0]+'/'+r}return '1228erickhu/stock'})();
+const DATA_URL=`https://raw.githubusercontent.com/${REPO}/data/latest.json`;
+let DB=null;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const twDate=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
+const msg=h=>{$('q_msg').innerHTML=h};
+function setV(id,v){$(id).value=(v==null?'':v)}
+async function loadDB(){
+  if(DB) return DB;
+  const r=await fetch(DATA_URL+'?t='+Math.floor(Date.now()/300000),{cache:'no-store'});
+  if(!r.ok) throw new Error(r.status);
+  DB=await r.json();return DB;
+}
+async function lookup(){
+  const code=$('q').value.trim();
+  if(!/^\d{4}$/.test(code)){msg('請輸入 4 位數的股票代號，例如 2330。');return}
+  msg('讀取中…');
+  try{await loadDB()}catch(e){msg('讀不到資料檔。網站剛架好的話，請到 GitHub 的 Actions 分頁手動執行一次「更新股價資料」。');return}
+  const s=DB.s&&DB.s[code];
+  if(!s){msg(`資料裡找不到 ${code}。目前只收上市、上櫃的 4 位數普通股（資料日 ${esc(DB.date||'—')}）。`);return}
+  const today=s.d===twDate();
+  if(today){
+    // 盤後：資料就是今天，今天的開高收量都有
+    setV('a_prev',s.pc);setV('a_open',s.o);setV('a_high',s.h);setV('a_close',s.c);setV('a_vol',s.v);
+    setV('a_vol5',s.v5p);setV('a_res',s.hp);setV('b_prev',s.pc);setV('b_ma5',s.ma5p);
+  }else{
+    // 盤中：資料是上一個交易日，今天的數字要自己填
+    setV('a_prev',s.c);['a_open','a_high','a_close','a_vol'].forEach(id=>setV(id,null));
+    setV('a_vol5',s.v5);setV('a_res',s.hi);setV('b_prev',s.c);setV('b_ma5',s.ma5);
+  }
+  $('a_dispose').checked=!!s.x;
+  let h=`<b>${esc(s.n)}（${code}，${s.m==='TWSE'?'上市':'上櫃'}）</b>　資料日 <b>${esc(s.d)}</b>`;
+  h+=today?'<br>這是今天的盤後資料，已填入今日開盤、最高、收盤和成交量，可以直接覆盤。'
+          :'<br>已填入昨收、前 5 日均量、前高、5 日均線。今天的開盤、最高、現價、成交量和 1 分 K 布林，請從看盤軟體填入。';
+  h+=`<br>前高取近 ${Math.min(60,(s.k||1)-(today?1:0))} 個交易日的最高價，請對照 K 線確認是不是真正的壓力區。`;
+  if(s.k<6) h+=`<br><span style="color:var(--warn)">資料才累積 ${s.k} 天，5 日均量和前高還不準。</span>`;
+  if(s.x) h+=`<br><span style="color:var(--up)">處置股：${esc(s.x)}</span>`;
+  const age=(Date.parse(twDate())-Date.parse(s.d))/864e5;
+  if(age>5) h+=`<br><span style="color:var(--warn)">資料已經 ${Math.round(age)} 天沒更新，請檢查 GitHub Actions 是否有正常執行。</span>`;
+  msg(h);calcA();calcB();
+}
+$('q_btn').addEventListener('click',lookup);
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')lookup()});
 twTime();calcA();calcB();
 </script>
 </body>
