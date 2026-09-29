@@ -11,6 +11,7 @@ import ssl
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 TZ = dt.timezone(dt.timedelta(hours=8))
@@ -23,27 +24,52 @@ NOW = dt.datetime.now(TZ)
 TODAY = NOW.date()
 
 
+DEAD = set()        # 本次執行中連不上的網站，之後直接略過
+FAILS = {}
+START = time.time()
+BUDGET = 20 * 60    # 最多花 20 分鐘抓資料，超過就先存檔，下次再補
+
+
 def get(url):
-    """抓 JSON；遇到證書問題改用不驗證連線，失敗回傳 None。"""
+    """抓 JSON；連不上的網站連續失敗兩次就放棄，避免卡住整個流程。"""
+    host = urllib.parse.urlparse(url).netloc
+    if host in DEAD:
+        return None
     req = urllib.request.Request(url, headers=HEADERS)
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             try:
-                with urllib.request.urlopen(req, timeout=40) as r:
+                with urllib.request.urlopen(req, timeout=20) as r:
                     raw = r.read()
+            except urllib.error.HTTPError:
+                raise
             except (ssl.SSLError, urllib.error.URLError) as e:
                 if "CERTIFICATE" not in str(e).upper():
                     raise
                 ctx = ssl._create_unverified_context()
-                with urllib.request.urlopen(req, timeout=40, context=ctx) as r:
+                with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
                     raw = r.read()
+            FAILS[host] = 0
             txt = raw.decode("utf-8-sig", errors="replace").strip()
             if not txt or txt[0] not in "[{":
                 return None
             return json.loads(txt)
-        except Exception as e:  # noqa: BLE001
-            print(f"  第 {attempt + 1} 次失敗：{url} → {e}")
-            time.sleep(PAUSE * 2)
+        except urllib.error.HTTPError as e:
+            print(f"  {host} 回應 HTTP {e.code}：{url}")
+            if e.code in (401, 403, 429):
+                DEAD.add(host)
+                print(f"  → {host} 拒絕連線，本次不再嘗試")
+            return None
+        except ValueError as e:
+            print(f"  資料格式看不懂：{url} → {e}")
+            return None
+        except Exception as e:  # noqa: BLE001  連線逾時、DNS 失敗等
+            print(f"  第 {attempt + 1} 次連線失敗：{url} → {e}")
+            time.sleep(3)
+    FAILS[host] = FAILS.get(host, 0) + 1
+    if FAILS[host] >= 2:
+        DEAD.add(host)
+        print(f"  → {host} 連續連不上，本次不再嘗試")
     return None
 
 
@@ -229,6 +255,7 @@ def fetch_disposal():
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)  # 讓 GitHub 的記錄即時顯示
     try:
         with open(HIST_IN, encoding="utf-8") as f:
             hist = json.load(f)
@@ -244,7 +271,14 @@ def main():
     if NOW.hour < 14 and TODAY in cands:
         cands.remove(TODAY)
 
+    print(f"已有 {len(dates)} 個交易日，這次要檢查 {len(cands)} 天")
     for d in cands:  # 由新到舊
+        if time.time() - START > BUDGET:
+            print("時間到了，先把抓到的存起來，下次執行再繼續往回補")
+            break
+        if "www.twse.com.tw" in DEAD and d != TODAY:
+            print("證交所主網站連不上，無法往回補歷史，改成每天累積")
+            break
         iso = d.isoformat()
         if len(dates) >= KEEP and iso not in dates and dates and iso < min(dates):
             break
@@ -262,7 +296,7 @@ def main():
         dates.add(iso)
 
     if not dates:
-        sys.exit("一天的資料都沒抓到，請看上面的錯誤訊息。")
+        sys.exit(f"一天的資料都沒抓到。連不上的網站：{', '.join(sorted(DEAD)) or '無'}。請把這段記錄截圖回報。")
 
     keep = sorted(dates)[-KEEP:]
     keep_set = set(keep)
