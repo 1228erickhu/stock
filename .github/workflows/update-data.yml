@@ -16,7 +16,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
 
       - name: 抓證交所與櫃買中心資料
-        run: python scripts/update_data.py out history.json
+        run: python -u scripts/update_data.py out history.json
 
       - name: 推到 data 分支（只保留最新一版，不累積歷史）
         run: |
