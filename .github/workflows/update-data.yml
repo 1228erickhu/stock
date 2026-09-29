@@ -1,0 +1,44 @@
+name: 更新股價資料
+
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'    # 台灣時間 16:00
+    - cron: '0 12 * * 1-5'   # 台灣時間 20:00（補抓）
+  workflow_dispatch:          # 可在 Actions 分頁手動執行
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取出之前累積的歷史資料
+        run: |
+          git fetch origin data:refs/remotes/origin/data --depth=1 || true
+          git show origin/data:history.json > history.json 2>/dev/null || echo '{}' > history.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 抓證交所與櫃買中心資料
+        run: python scripts/update_data.py out history.json
+
+      - name: 推到 data 分支（只保留最新一版，不累積歷史）
+        run: |
+          cd out
+          git init -q
+          git checkout -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "data $(TZ=Asia/Taipei date +%F_%H%M)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
