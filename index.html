@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>進場檢查站｜隔日沖 × 布林當沖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1F5; --card:#FFFFFF; --ink:#1D2A44; --muted:#5B6782; --line:#D3DAE6;
+  --up:#D6333B; --down:#1F8A5B; --warn:#C98A0B; --field:#F7F9FC; --accent:#2F4B84;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#141B2B; --card:#1C2538; --ink:#E6EBF5; --muted:#9AA6C0; --line:#2E3A54;
+    --up:#F0555C; --down:#3DBB84; --warn:#F2B53A; --field:#232E45; --accent:#8FA9E0;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141B2B; --card:#1C2538; --ink:#E6EBF5; --muted:#9AA6C0; --line:#2E3A54;
+  --up:#F0555C; --down:#3DBB84; --warn:#F2B53A; --field:#232E45; --accent:#8FA9E0;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:16px;line-height:1.6}
+header{max-width:1120px;margin:0 auto;padding:28px 20px 8px}
+h1{font-family:"Noto Serif TC","PMingLiU",serif;font-weight:900;font-size:clamp(1.8rem,5vw,2.6rem);margin:0;letter-spacing:.02em}
+.sub{color:var(--muted);margin:4px 0 0;max-width:60ch}
+.clock{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700}
+nav{max-width:1120px;margin:16px auto 0;padding:0 20px;display:flex;gap:6px;flex-wrap:wrap}
+nav button{font:inherit;border:1px solid var(--line);background:transparent;color:var(--ink);
+  padding:8px 16px;border-radius:999px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+main{max-width:1120px;margin:0 auto;padding:16px 20px 48px}
+.panel{display:none}.panel.on{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:860px){.panel.on{grid-template-columns:1fr}}
+fieldset{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:16px 18px 18px;margin:0 0 16px}
+legend{font-family:"Noto Serif TC",serif;font-weight:600;font-size:1.1rem;padding:0 6px}
+.hint{color:var(--muted);font-size:.86rem;margin:2px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px 12px}
+label.f{display:flex;flex-direction:column;font-size:.88rem;color:var(--muted);gap:3px}
+input[type=number],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);
+  border-radius:6px;padding:7px 9px;width:100%;font-variant-numeric:tabular-nums}
+textarea{min-height:90px;resize:vertical}
+.checks{display:grid;gap:6px;margin-top:6px}
+.checks label{display:flex;gap:8px;align-items:flex-start;font-size:.95rem;cursor:pointer}
+.checks input{margin-top:5px;accent-color:var(--accent)}
+.auto{font-size:.85rem;margin-top:8px;color:var(--muted)}
+.auto b{color:var(--ink);font-variant-numeric:tabular-nums}
+.btn{font:inherit;border:0;background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;cursor:pointer;margin-top:10px}
+:root[data-theme="dark"] .btn{color:#141B2B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn{color:#141B2B}}
+
+/* 燈號 */
+aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.signal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.lamp{display:flex;gap:10px;justify-content:center;background:var(--ink);border-radius:40px;padding:10px 16px;width:max-content;margin:0 auto 14px}
+.lamp span{width:30px;height:30px;border-radius:50%;background:#3a4460;opacity:.35;transition:opacity .25s,box-shadow .25s}
+.lamp .r.on{background:var(--up);opacity:1;box-shadow:0 0 16px var(--up)}
+.lamp .y.on{background:var(--warn);opacity:1;box-shadow:0 0 16px var(--warn)}
+.lamp .g.on{background:var(--down);opacity:1;box-shadow:0 0 16px var(--down)}
+@media (prefers-reduced-motion:reduce){.lamp span{transition:none}}
+.verdict{font-family:"Noto Serif TC",serif;font-weight:900;font-size:1.6rem;text-align:center;margin:0}
+.vsub{text-align:center;color:var(--muted);margin:2px 0 12px;font-size:.92rem}
+.list{list-style:none;padding:0;margin:0;font-size:.92rem}
+.list li{padding:6px 0;border-top:1px dashed var(--line);display:flex;gap:8px}
+.list li::before{flex:none;font-weight:700;width:1.2em}
+.list li.ok::before{content:"✓";color:var(--down)}
+.list li.no::before{content:"✗";color:var(--up)}
+.list li.wa::before{content:"!";color:var(--warn)}
+.list li.in::before{content:"•";color:var(--accent)}
+h3{font-size:1rem;margin:16px 0 4px}
+.plan{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums}
+.plan td{padding:5px 0;border-top:1px solid var(--line);vertical-align:top}
+.plan td:last-child{text-align:right;font-weight:700;white-space:nowrap;padding-left:8px}
+.note{font-size:.8rem;color:var(--muted);margin-top:14px}
+.rules{grid-template-columns:1fr!important}
+.rules section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-bottom:16px}
+.rules h2{font-family:"Noto Serif TC",serif;margin:0 0 6px;font-size:1.25rem}
+.rules ul{margin:0;padding-left:1.2em}.rules li{margin:4px 0;max-width:70ch}
+footer{max-width:1120px;margin:0 auto;padding:0 20px 32px;color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>進場檢查站</h1>
+  <p class="sub">把兩本講義的條件變成一張檢查表：填入盤面數字，燈號告訴你這檔股票符不符合型態。台灣時間 <span class="clock" id="clock">--:--:--</span></p>
+</header>
+
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-tab="p1">隔日沖（尾盤進）</button>
+  <button role="tab" aria-selected="false" data-tab="p2">布林當沖（開盤沖）</button>
+  <button role="tab" aria-selected="false" data-tab="p3">紀律速查</button>
+</nav>
+
+<main>
+<!-- ============ 隔日沖 ============ -->
+<div class="panel on" id="p1">
+  <div>
+    <fieldset>
+      <legend>今日價格</legend>
+      <p class="hint">建議 13:00 開始看，13:25–13:30 試撮時再決定。</p>
+      <div class="grid">
+        <label class="f">昨收（平盤價）<input type="number" step="any" id="a_prev"></label>
+        <label class="f">今日開盤<input type="number" step="any" id="a_open"></label>
+        <label class="f">今日最高<input type="number" step="any" id="a_high"></label>
+        <label class="f">現價／收盤<input type="number" step="any" id="a_close"></label>
+      </div>
+      <div class="auto" id="a_auto"></div>
+    </fieldset>
+    <fieldset>
+      <legend>量能與壓力</legend>
+      <div class="grid">
+        <label class="f">今日成交量（張）<input type="number" step="any" id="a_vol"></label>
+        <label class="f">前 5 日均量（張）<input type="number" step="any" id="a_vol5"></label>
+        <label class="f">前波高點（壓力價）<input type="number" step="any" id="a_res"></label>
+      </div>
+      <label class="f" style="margin-top:10px">和壓力區的關係
+        <select id="a_pos">
+          <option value="">請選擇</option>
+          <option value="break1">今天是突破壓力的第一根紅 K</option>
+          <option value="near">貼近壓力、準備突破</option>
+          <option value="breakN">已突破好幾天了</option>
+          <option value="far">離壓力還很遠</option>
+        </select>
+      </label>
+      <div class="auto" id="a_auto2"></div>
+    </fieldset>
+    <fieldset>
+      <legend>籌碼（主力動向）</legend>
+      <p class="hint">主力買賣超越大越好，家數差越小（越負）越好。</p>
+      <div class="grid">
+        <label class="f">主力買賣超（張）<input type="number" step="any" id="a_main"></label>
+        <label class="f">家數差<input type="number" step="any" id="a_diff"></label>
+        <label class="f">主力連續買超天數<input type="number" step="1" id="a_days"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>其他狀況</legend>
+      <div class="checks">
+        <label><input type="checkbox" id="a_hot"> 出現在「成交重心股」量大清單裡</label>
+        <label><input type="checkbox" id="a_limit"> 今天鎖漲停</label>
+        <label><input type="checkbox" id="a_dispose"> 這檔是處置股</label>
+        <label><input type="checkbox" id="a_night"> 今晚夜盤／美股看起來不穩</label>
+      </div>
+    </fieldset>
+  </div>
+  <aside>
+    <div class="signal" aria-live="polite">
+      <div class="lamp" aria-hidden="true"><span class="r" id="a_r"></span><span class="y" id="a_y"></span><span class="g" id="a_g"></span></div>
+      <p class="verdict" id="a_v">填入數字</p>
+      <p class="vsub" id="a_vs">至少填昨收、最高、現價</p>
+      <ul class="list" id="a_list"></ul>
+      <div id="a_plan"></div>
+      <p class="note">綠燈＝符合做多型態（台股紅漲綠跌，這裡的燈號是「通行」的意思）。</p>
+    </div>
+  </aside>
+</div>
+
+<!-- ============ 布林當沖 ============ -->
+<div class="panel" id="p2">
+  <div>
+    <fieldset>
+      <legend>盤前選股（做空候選）</legend>
+      <div class="checks">
+        <label><input type="checkbox" id="b_lu"> 昨天漲停</label>
+        <label><input type="checkbox" id="b_broker"> 隔日沖券商買超比例高</label>
+        <label><input type="checkbox" id="b_habit"> 過去漲停隔天有「開高倒貨」慣性</label>
+        <label><input type="checkbox" id="b_dispose"> 今天解處置，且過去解處置當天常被倒貨</label>
+        <label><input type="checkbox" id="b_diverge"> 昨天和同族群走勢背離（族群殺、它獨強）</label>
+        <label><input type="checkbox" id="b_delay"> 今天暫緩開盤（開盤前試撮大降）</label>
+      </div>
+      <div class="grid" style="margin-top:10px">
+        <label class="f">昨收<input type="number" step="any" id="b_prev"></label>
+        <label class="f">5 日均線<input type="number" step="any" id="b_ma5"></label>
+      </div>
+      <div class="auto" id="b_auto0"></div>
+    </fieldset>
+    <fieldset>
+      <legend>1 分 K 布林（20, 2）</legend>
+      <p class="hint">XQ 上 U(2.00)／MA(20)／L(2.00) 的數字直接抄過來，或用下方計算器帶入。</p>
+      <div class="grid">
+        <label class="f">上軌 U<input type="number" step="any" id="b_u"></label>
+        <label class="f">中軌 MA20<input type="number" step="any" id="b_m"></label>
+        <label class="f">下軌 L<input type="number" step="any" id="b_l"></label>
+        <label class="f">開盤價<input type="number" step="any" id="b_open"></label>
+        <label class="f">現價<input type="number" step="any" id="b_px"></label>
+        <label class="f">今日最高（早高）<input type="number" step="any" id="b_hi"></label>
+        <label class="f">今日最低（早低）<input type="number" step="any" id="b_lo"></label>
+      </div>
+      <label class="f" style="margin-top:10px">最近 K 棒長相
+        <select id="b_k">
+          <option value="">請選擇</option>
+          <option value="bigGreen">出軌後一根大實體綠 K</option>
+          <option value="greenUpper">出軌的綠 K 留長上影線</option>
+          <option value="crossGreen">沿上軌拉，出現十字／上影 K，下一根綠 K</option>
+          <option value="bigRed">出下軌後一根大實體紅 K</option>
+          <option value="other">以上皆非</option>
+        </select>
+      </label>
+      <div class="checks" style="margin-top:8px">
+        <label><input type="checkbox" id="b_5m"> 5 分 K 也同時出軌</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>KD（9, 3, 3）</legend>
+      <div class="grid">
+        <label class="f">K 值<input type="number" step="any" id="b_kv"></label>
+        <label class="f">D 值<input type="number" step="any" id="b_dv"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>布林計算器</legend>
+      <p class="hint">貼上最近至少 20 根 1 分 K 收盤價（舊到新，逗號、空白或換行分隔）。</p>
+      <textarea id="c_in" placeholder="74.5, 74.6, 74.8 …"></textarea>
+      <button class="btn" id="c_btn" type="button">計算並帶入上軌／中軌／下軌</button>
+      <div class="auto" id="c_out"></div>
+    </fieldset>
+  </div>
+  <aside>
+    <div class="signal" aria-live="polite">
+      <div class="lamp" aria-hidden="true"><span class="r" id="b_r"></span><span class="y" id="b_y"></span><span class="g" id="b_g"></span></div>
+      <p class="verdict" id="b_v">填入布林數字</p>
+      <p class="vsub" id="b_vs">至少填上軌、中軌、下軌、現價</p>
+      <ul class="list" id="b_list"></ul>
+      <div id="b_plan"></div>
+      <p class="note">紅燈＝出現空單訊號，綠燈＝出現多單訊號，黃燈＝沒有訊號先觀望。</p>
+    </div>
+  </aside>
+</div>
+
+<!-- ============ 紀律速查 ============ -->
+<div class="panel rules" id="p3">
+  <div>
+    <section>
+      <h2>隔日沖：進場</h2>
+      <ul>
+        <li>從量大的成交重心股裡挑，專找突破壓力的第一根紅 K，或準備突破的紅 K。</li>
+        <li>當日漲幅 7% 以上，上影線不超過 1%，最好收在最高。</li>
+        <li>量要比前幾天大，但避開爆大量；爆量股混入太多組隔日沖，隔天開盤容易被砸。</li>
+        <li>只在尾盤（13:25–13:30 試撮時）買，最後一盤買；掛漲停價會以收盤價成交。</li>
+        <li>處置股的試撮沒有參考價值，不適用。不要用權證做隔日沖。</li>
+        <li>資金分 2–3 檔做，不要單押一檔。</li>
+      </ul>
+    </section>
+    <section>
+      <h2>隔日沖：隔天出場</h2>
+      <ul>
+        <li>開高 3% 以上：開盤前掛跌停價賣出，實際會以開盤價成交。</li>
+        <li>開高但不到 1%，或跌回平盤附近：賣出。</li>
+        <li>有開高就在 5 分鐘內了結，不賭後續；開很高後從開盤價跌超過 2% 要果斷走。</li>
+        <li>開低：新手直接市價認賠；有經驗可看 5 分鐘，跌破這 5 分鐘的低點就走。</li>
+        <li>追漲停進場的，隔天沒開高一律第一盤賣。</li>
+        <li>賣飛了尾盤型態還在可以再買回，不要追想沒賺到的那段。</li>
+      </ul>
+    </section>
+    <section>
+      <h2>布林當沖：開盤沖</h2>
+      <ul>
+        <li>空單訊號：開在上軌外接大綠 K；開在上軌外的綠 K 留上影；沿上軌拉出十字或上影後接綠 K。</li>
+        <li>多單訊號：開在下軌外接大紅 K。</li>
+        <li>停損：做空過早高、做多破早低，立刻出場，不凹單。</li>
+        <li>停利：碰 5／10 均線收腳（做空）或上不去（做多）、中軌有撐或有壓、打到下軌或上軌就分批出。</li>
+        <li>1 分 K 和 5 分 K 同時出軌、暫緩開盤、昨天族群背離，都是加分條件。</li>
+      </ul>
+    </section>
+    <section>
+      <h2>布林當沖：盤中</h2>
+      <ul>
+        <li>縮口（上軌到中軌約 2 檔）：碰上軌收上影偏空、碰下軌收下影偏多；或等跌破／突破區間那一瞬間才進，錯過不追。</li>
+        <li>區間震盪：上軌空、下軌多，打到對面軌道就出，連續突破軌道就停損；選股價 100–200、軌道寬的股。</li>
+        <li>KD 超漲（K、D 都 &gt; 80）配上軌或中軌壓力可試空；超跌（都 &lt; 20）配下軌或中軌支撐可試多。</li>
+        <li>加碼用金字塔：母單多、加碼單少。掛單沒吃到就不追。</li>
+      </ul>
+    </section>
+  </div>
+</div>
+</main>
+<footer>本工具只是把講義條件整理成檢查表，不預測股價、不構成投資建議；條件全符合也可能虧損，下單前請自行判斷並做好停損。</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)?v:null};
+const chk=id=>$(id).checked;
+// 台股升降單位
+function tick(p){if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5}
+function dec(p){const t=tick(p);return t<.05?2:t<1?2:0}
+function rDown(p){const t=tick(p);return Math.floor(p/t+1e-9)*t}
+function rUp(p){const t=tick(p);return Math.ceil(p/t-1e-9)*t}
+function fmt(p){return p==null?'—':(+p).toFixed(dec(p)).replace(/\.?0+$/,m=>m.includes('.')&&dec(p)?m.replace(/0+$/,'').replace(/\.$/,''):m)}
+function f2(p){return p.toFixed(dec(p))}
+const pct=x=>(x>=0?'+':'')+x.toFixed(2)+'%';
+
+// 分頁
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===b.dataset.tab));
+}));
+
+// 台灣時間
+function twTime(){
+  const s=new Date().toLocaleString('en-GB',{timeZone:'Asia/Taipei',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('clock').textContent=s;const[h,m]=s.split(':').map(Number);return h*60+m;
+}
+setInterval(()=>{twTime();calcA()},1000);
+
+function lamp(pre,which){['r','y','g'].forEach(c=>$(pre+'_'+c).classList.toggle('on',c===which))}
+function li(cls,t){return `<li class="${cls}">${t}</li>`}
+
+// ===== 隔日沖 =====
+function calcA(){
+  const prev=num('a_prev'),open=num('a_open'),high=num('a_high'),close=num('a_close'),
+        vol=num('a_vol'),vol5=num('a_vol5'),res=num('a_res'),pos=$('a_pos').value,
+        main=num('a_main'),diff=num('a_diff'),days=num('a_days');
+  const out=[];let core=0,coreN=0,fail=[];
+  let auto='',auto2='';
+  if(prev==null||high==null||close==null){
+    lamp('a',null);$('a_v').textContent='填入數字';$('a_vs').textContent='至少填昨收、最高、現價';
+    $('a_list').innerHTML='';$('a_plan').innerHTML='';$('a_auto').innerHTML='';$('a_auto2').innerHTML='';return;
+  }
+  const chg=(close-prev)/prev*100;
+  const bodyTop=open!=null?Math.max(open,close):close;
+  const shadow=(high-bodyTop)/prev*100;
+  auto=`漲幅 <b>${pct(chg)}</b>　上影線 <b>${shadow.toFixed(2)}%</b>${close>=high?'　<b>收在最高</b>':''}`;
+  $('a_auto').innerHTML=auto;
+
+  // 核心條件
+  coreN++; if(chg>=7){core++;out.push(li('ok',`漲幅 ${pct(chg)}，達 7% 以上`))}else{fail.push(1);out.push(li('no',`漲幅 ${pct(chg)}，未達 7%`))}
+  coreN++; if(shadow<=1){core++;out.push(li('ok',`上影線 ${shadow.toFixed(2)}%，不超過 1%`))}else{fail.push(1);out.push(li('no',`上影線 ${shadow.toFixed(2)}% 太長，突破型態被破壞`))}
+  if(open!=null&&close<open) out.push(li('wa','今天是黑 K，講義要的是紅 K'));
+  coreN++;
+  if(vol!=null&&vol5){
+    const r=vol/vol5;auto2=`量比 <b>${r.toFixed(2)} 倍</b>`;
+    if(r>1){core++;out.push(li('ok',`量是前 5 日均量的 ${r.toFixed(2)} 倍`))}else{fail.push(1);out.push(li('no',`量 ${r.toFixed(2)} 倍，沒有比前幾天大`))}
+    if(r>=3) out.push(li('wa',`量比 ${r.toFixed(1)} 倍偏向爆量，隔日沖主力可能太多組（3 倍是本工具自訂門檻）`));
+  }else out.push(li('in','填入今日量與 5 日均量才能判斷量能'));
+  if(res!=null){const d=(close-res)/res*100;auto2+=`${auto2?'　':''}距前高 <b>${pct(d)}</b>`}
+  $('a_auto2').innerHTML=auto2;
+  coreN++;
+  const posTxt={break1:'突破壓力的第一根紅 K',near:'貼近壓力、準備突破',breakN:'已突破多天，不是第一根',far:'離壓力太遠'};
+  if(pos==='break1'||pos==='near'){core++;out.push(li('ok',posTxt[pos]))}
+  else if(pos){fail.push(1);out.push(li('no',posTxt[pos]))}
+  else out.push(li('in','選擇和壓力區的關係'));
+  coreN++;
+  if(chk('a_dispose')){fail.push(1);out.push(li('no','處置股的試撮沒有參考價值，不適用此方法'))}else core++;
+
+  // 加分
+  if(chk('a_hot')) out.push(li('ok','在成交重心股清單內'));
+  if(main!=null) out.push(li(main>0?'ok':'wa',`主力買賣超 ${main} 張`));
+  if(diff!=null) out.push(li(diff<0?'ok':'wa',`家數差 ${diff}${diff<0?'，籌碼往少數人集中':''}`));
+  if(days!=null&&days>=2) out.push(li('ok',`主力連續買 ${days} 天`));
+  if(chk('a_night')) out.push(li('wa','系統性風險是隔日沖最怕的，今晚不穩可考慮減量或不做'));
+
+  // 時間
+  const t=twTime();
+  if(t>=13*60+25&&t<=13*60+30) out.push(li('ok','現在是 13:25–13:30 試撮時段，可以掛單'));
+  else if(t>=13*60&&t<13*60+25) out.push(li('in','13:25 後再進場，避開尾盤被倒貨'));
+  else out.push(li('in','講義建議只在 13:25–13:30 尾盤試撮時買'));
+
+  const miss=coreN-core;
+  if(miss===0&&(pos==='break1'||pos==='near')){lamp('a','g');$('a_v').textContent='符合型態';$('a_vs').textContent='可小單試，隔天開盤照計畫出';}
+  else if(miss===1&&!chk('a_dispose')){lamp('a','y');$('a_v').textContent='差一點';$('a_vs').textContent=`${coreN} 項核心條件中有 1 項不符，建議觀望`;}
+  else{lamp('a','r');$('a_v').textContent='不符合';$('a_vs').textContent=`${coreN} 項核心條件中有 ${miss} 項不符`;}
+  $('a_list').innerHTML=out.join('');
+
+  // 隔天出場計畫（以今日收盤＝明日平盤）
+  const base=close;
+  const lim=rDown(base*0.9+1e-9);const limDn=rUp(base*0.9);
+  const p3=rUp(base*1.03),p1=rUp(base*1.01);
+  let plan=`<h3>明天出場計畫（平盤 ${f2(base)}）</h3><table class="plan">
+  <tr><td>開盤 ≥ ${f2(p3)}（+3%）：開盤前掛跌停 ${f2(limDn)} 賣，會以開盤價成交</td><td>全出</td></tr>
+  <tr><td>開高但 &lt; ${f2(p1)}（+1%）或跌回 ${f2(base)} 附近</td><td>賣出</td></tr>
+  <tr><td>其他開高：5 分鐘內了結；若開很高，從開盤價跌 2% 就走</td><td>5 分內</td></tr>
+  <tr><td>開低：新手直接市價出；有經驗看 5 分鐘，破這段低點就走</td><td>認賠</td></tr>`;
+  if(chk('a_limit')) plan+=`<tr><td>今天是追漲停進的：明天沒開高就第一盤賣</td><td>第一盤</td></tr>`;
+  plan+='</table>';
+  $('a_plan').innerHTML=plan;
+}
+
+// ===== 布林當沖 =====
+function calcB(){
+  const U=num('b_u'),M=num('b_m'),L=num('b_l'),op=num('b_open'),px=num('b_px'),hi=num('b_hi'),lo=num('b_lo'),
+        k=$('b_k').value,kv=num('b_kv'),dv=num('b_dv'),prev=num('b_prev'),ma5=num('b_ma5');
+  const out=[];
+  // 盤前選股
+  const pre=['b_lu','b_broker','b_habit','b_dispose','b_diverge','b_delay'].filter(chk).length;
+  if(prev!=null&&ma5){const b=(prev-ma5)/ma5*100;$('b_auto0').innerHTML=`昨收對 5 日線乖離 <b>${pct(b)}</b>${b>0?'（越大越是漲多的股）':''}`}else $('b_auto0').innerHTML='';
+  if(U==null||M==null||L==null||px==null){
+    lamp('b',null);$('b_v').textContent='填入布林數字';$('b_vs').textContent='至少填上軌、中軌、下軌、現價';
+    $('b_list').innerHTML=pre?li('in',`盤前做空條件已勾 ${pre} 項`):'';$('b_plan').innerHTML='';return;
+  }
+  const where=p=>p>U?'出上軌':p>=M?'上軌～中軌':p>=L?'中軌～下軌':'出下軌';
+  out.push(li('in',`現價在 <b>${where(px)}</b>${op!=null?`，開盤在 ${where(op)}`:''}`));
+  const openRef=op!=null?op:px;
+  let sig=null,name='';
+  if(openRef>U&&k==='bigGreen'){sig='S';name='空單訊號 1：大綠 K 出上軌直接殺'}
+  else if(openRef>U&&k==='greenUpper'){sig='S';name='空單訊號 2：開盤出上軌留綠 K 上影'}
+  else if(k==='crossGreen'&&px>=M){sig='S';name='空單訊號 3：沿上軌拉出十字／上影後接綠 K'}
+  else if(openRef<L&&k==='bigRed'){sig='L';name='多單訊號 1：開盤出下軌接大紅 K'}
+  if(k&&k!=='other'&&!sig) out.push(li('wa','K 棒長相和布林位置對不起來（例如沒出軌），不算訊號'));
+
+  // 縮口
+  const width=U-M,t=tick(M);
+  if(width<=2*t+1e-9) out.push(li('wa',`縮口中（上軌到中軌約 ${Math.round(width/t)} 檔）：碰上軌收上影偏空、碰下軌收下影偏多，或等破區間那一刻`));
+
+  // 加分
+  if(chk('b_5m')) out.push(li('ok','1 分 K、5 分 K 同時出軌，加分'));
+  if(sig==='S'){
+    if(pre) out.push(li('ok',`盤前做空條件符合 ${pre} 項`)); else out.push(li('wa','盤前選股條件都沒勾，不是典型隔日沖標的'));
+    if(chk('b_delay')) out.push(li('ok','暫緩開盤，下殺機率較高'));
+  }
+  if(kv!=null&&dv!=null){
+    if(kv>80&&dv>80) out.push(li(sig==='L'?'wa':'ok',`KD 超漲（${kv}/${dv}）${px>=M?'，又在中軌以上，偏空':''}`));
+    else if(kv<20&&dv<20) out.push(li(sig==='S'?'wa':'ok',`KD 超跌（${kv}/${dv}）${px<=M?'，又在中軌以下，偏多':''}`));
+    else out.push(li('in',`KD ${kv}/${dv}，不在超漲超跌區`));
+  }
+
+  let plan='';
+  if(sig==='S'){
+    lamp('b','r');$('b_v').textContent='空單訊號';$('b_vs').textContent=name;
+    plan=`<h3>這筆空單的規劃</h3><table class="plan">
+    <tr><td>停損：突破早高立刻出</td><td>${hi!=null?'&gt; '+f2(hi):'填早高'}</td></tr>
+    <tr><td>停利 1：打到中軌收下影、遲遲不破</td><td>${f2(M)}</td></tr>
+    <tr><td>停利 2：打到下軌分批回補</td><td>${f2(L)}</td></tr>
+    <tr><td>另外：碰 5／10 均線收下影或不破底，先保利</td><td>隨時</td></tr></table>`;
+    if(hi!=null&&px>0){const risk=(hi-px)/px*100,rew=(px-M)/px*100;
+      plan+=`<p class="auto">以現價估：風險約 <b>${risk.toFixed(2)}%</b>，到中軌空間約 <b>${rew.toFixed(2)}%</b>${rew<risk?'，賺賠比不划算':''}</p>`}
+  }else if(sig==='L'){
+    lamp('b','g');$('b_v').textContent='多單訊號';$('b_vs').textContent=name;
+    plan=`<h3>這筆多單的規劃</h3><table class="plan">
+    <tr><td>停損：跌破早低立刻出</td><td>${lo!=null?'&lt; '+f2(lo):'填早低'}</td></tr>
+    <tr><td>停利 1：打到中軌出上影或綠 K</td><td>${f2(M)}</td></tr>
+    <tr><td>停利 2：打到上軌出場</td><td>${f2(U)}</td></tr>
+    <tr><td>另外：過不了均線、出上影或綠 K，先保利</td><td>隨時</td></tr></table>`;
+  }else{
+    lamp('b','y');$('b_v').textContent='沒有訊號';$('b_vs').textContent=k?'條件未到，等下一根 K':'選擇最近 K 棒長相';
+  }
+  $('b_list').innerHTML=out.join('');$('b_plan').innerHTML=plan;
+}
+
+// 布林計算器（母體標準差，與 XQ 預設一致）
+$('c_btn').addEventListener('click',()=>{
+  const arr=$('c_in').value.split(/[\s,，、]+/).map(parseFloat).filter(isFinite);
+  if(arr.length<20){$('c_out').innerHTML=`目前只有 ${arr.length} 筆，至少要 20 筆收盤價`;return}
+  const w=arr.slice(-20),ma=w.reduce((a,b)=>a+b,0)/20,sd=Math.sqrt(w.reduce((a,b)=>a+(b-ma)**2,0)/20);
+  const U=ma+2*sd,L=ma-2*sd;
+  $('b_u').value=U.toFixed(2);$('b_m').value=ma.toFixed(2);$('b_l').value=L.toFixed(2);
+  if(!$('b_px').value) $('b_px').value=arr[arr.length-1];
+  $('c_out').innerHTML=`上軌 <b>${U.toFixed(2)}</b>　中軌 <b>${ma.toFixed(2)}</b>　下軌 <b>${L.toFixed(2)}</b>（已帶入）`;
+  calcB();
+});
+
+document.querySelectorAll('#p1 input,#p1 select').forEach(e=>e.addEventListener('input',calcA));
+document.querySelectorAll('#p2 input,#p2 select').forEach(e=>e.addEventListener('input',calcB));
+twTime();calcA();calcB();
+</script>
+</body>
+</html>
